@@ -96,8 +96,8 @@ static void ap_set_phone_state(struct audio_policy *pol, int state)
 static void ap_set_ringer_mode(struct audio_policy *pol, uint32_t mode,
                                uint32_t mask)
 {
-    struct qcom_audio_policy *qap = to_qap(pol);
-    qap->apm->setRingerMode(mode, mask);
+//    struct qcom_audio_policy *qap = to_qap(pol);
+//    qap->apm->setRingerMode(mode, mask);
 }
 
     /* force using a specific device category for the specified usage */
@@ -174,7 +174,7 @@ static audio_io_handle_t ap_get_output(struct audio_policy *pol,
                                        uint32_t sampling_rate,
                                        uint32_t format,
                                        uint32_t channels,
-                                       audio_policy_output_flags_t flags)
+                                       audio_output_flags_t flags)
 {
     struct qcom_audio_policy *qap = to_qap(pol);
 
