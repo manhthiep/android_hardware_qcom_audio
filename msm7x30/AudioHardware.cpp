@@ -843,7 +843,7 @@ AudioStreamOut* AudioHardware::openOutputSession(
 void AudioHardware::closeOutputStream(AudioStreamOut* out) {
     Mutex::Autolock lock(mLock);
     if (mOutput == 0 || mOutput != out) {
-        LOGW("Attempt to close invalid output stream");
+        ALOGW("Attempt to close invalid output stream");
     }
     else {
         delete mOutput;
@@ -884,7 +884,7 @@ void AudioHardware::closeInputStream(AudioStreamIn* in) {
 
     ssize_t index = mInputs.indexOf((AudioStreamInMSM72xx *)in);
     if (index < 0) {
-        LOGW("Attempt to close invalid input stream");
+        ALOGW("Attempt to close invalid input stream");
     } else {
         mLock.unlock();
         delete mInputs[index];
@@ -1137,11 +1137,11 @@ size_t AudioHardware::getInputBufferSize(uint32_t sampleRate, int format, int ch
         (format != AudioSystem::QCELP)  &&
 #endif
         (format != AudioSystem::AAC)){
-        LOGW("getInputBufferSize bad format: %d", format);
+        ALOGW("getInputBufferSize bad format: %d", format);
         return 0;
     }
     if (channelCount < 1 || channelCount > 2) {
-        LOGW("getInputBufferSize bad channel count: %d", channelCount);
+        ALOGW("getInputBufferSize bad channel count: %d", channelCount);
         return 0;
     }
 
@@ -1186,10 +1186,10 @@ static status_t set_volume_rpc(uint32_t device,
 status_t AudioHardware::setVoiceVolume(float v)
 {
     if (v < 0.0) {
-        LOGW("setVoiceVolume(%f) under 0.0, assuming 0.0\n", v);
+        ALOGW("setVoiceVolume(%f) under 0.0, assuming 0.0\n", v);
         v = 0.0;
     } else if (v > 1.0) {
-        LOGW("setVoiceVolume(%f) over 1.0, assuming 1.0\n", v);
+        ALOGW("setVoiceVolume(%f) over 1.0, assuming 1.0\n", v);
         v = 1.0;
     }
 
@@ -2088,7 +2088,7 @@ status_t AudioHardware::doRouting(AudioStreamInMSM72xx *input)
     if (sndDevice == -1) {
         if (outputDevices & (outputDevices - 1)) {
             if ((outputDevices & AudioSystem::DEVICE_OUT_SPEAKER) == 0) {
-                LOGW("Hardware does not support requested route combination (%#X),"
+                ALOGW("Hardware does not support requested route combination (%#X),"
                      " picking closest possible route...", outputDevices);
             }
         }
@@ -2554,10 +2554,10 @@ status_t AudioHardware::AudioSessionOutMSM7xxx::setVolume(float left, float righ
 {
     float v = (left + right) / 2;
     if (v < 0.0) {
-        LOGW("AudioSessionOutMSM7xxx::setVolume(%f) under 0.0, assuming 0.0\n", v);
+        ALOGW("AudioSessionOutMSM7xxx::setVolume(%f) under 0.0, assuming 0.0\n", v);
         v = 0.0;
     } else if (v > 1.0) {
-        LOGW("AudioSessionOutMSM7xxx::setVolume(%f) over 1.0, assuming 1.0\n", v);
+        ALOGW("AudioSessionOutMSM7xxx::setVolume(%f) over 1.0, assuming 1.0\n", v);
         v = 1.0;
     }
 
@@ -2680,7 +2680,7 @@ ssize_t AudioHardware::AudioStreamOutMSM72xx::write(const void* buffer, size_t b
         } else {
             if (errno != EAGAIN) return written;
             mRetryCount++;
-            LOGW("EAGAIN - retry");
+            ALOGW("EAGAIN - retry");
         }
     }
 
@@ -3516,7 +3516,7 @@ ssize_t AudioHardware::AudioStreamInMSM72xx::read( void* buffer, ssize_t bytes)
             } else {
                 if (errno != EAGAIN) return bytesRead;
                 mRetryCount++;
-                LOGW("EAGAIN - retrying");
+                ALOGW("EAGAIN - retrying");
             }
         }
     }
@@ -3569,7 +3569,7 @@ ssize_t AudioHardware::AudioStreamInMSM72xx::read( void* buffer, ssize_t bytes)
             } else {
                 if (errno != EAGAIN) return bytesRead;
                 mRetryCount++;
-                LOGW("EAGAIN - retrying");
+                ALOGW("EAGAIN - retrying");
             }
         }
     }
@@ -3620,7 +3620,7 @@ ssize_t AudioHardware::AudioStreamInMSM72xx::read( void* buffer, ssize_t bytes)
             } else {
                 if (errno != EAGAIN) return bytesRead;
                 mRetryCount++;
-                LOGW("EAGAIN - retrying");
+                ALOGW("EAGAIN - retrying");
             }
         }
     }
