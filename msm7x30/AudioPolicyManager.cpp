@@ -35,7 +35,7 @@ audio_devices_t AudioPolicyManager::getDeviceForStrategy(routing_strategy strate
 
     if (fromCache) {
         ALOGV("getDeviceForStrategy() from cache strategy %d, device %x", strategy, mDeviceForStrategy[strategy]);
-        return (audio_devices_t)mDeviceForStrategy[strategy];
+        return mDeviceForStrategy[strategy];
     }
 
     switch (strategy) {
