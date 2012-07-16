@@ -143,7 +143,7 @@ static audio_io_handle_t ap_get_session(struct audio_policy *pol,
 {
     struct qcom_audio_policy *qap = to_qap(pol);
 
-    LOGV("%s: tid %d", __func__, gettid());
+    ALOGV("%s: tid %d", __func__, gettid());
     return qap->apm->getSession((AudioSystem::stream_type)stream,
                                format, (AudioSystem::output_flags)flags,
                                sessionId);
@@ -178,7 +178,7 @@ static audio_io_handle_t ap_get_output(struct audio_policy *pol,
 {
     struct qcom_audio_policy *qap = to_qap(pol);
 
-    LOGV("%s: tid %d", __func__, gettid());
+    ALOGV("%s: tid %d", __func__, gettid());
     return qap->apm->getOutput((AudioSystem::stream_type)stream,
                                sampling_rate, format, channels,
                                (AudioSystem::output_flags)flags);
