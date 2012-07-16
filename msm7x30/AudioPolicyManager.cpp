@@ -318,7 +318,7 @@ status_t AudioPolicyManager::setDeviceConnectionState(AudioSystem::audio_devices
         }
 
         // request routing change if necessary
-        uint32_t newDevice = AudioPolicyManagerBase::getNewDevice(mHardwareOutput, false);
+        uint32_t newDevice = AudioPolicyManagerBase::getNewDevice(mPrimaryOutput, false);
 #ifdef WITH_QCOM_LPA
         if(newDevice == 0 && mLPADecodeOutput != -1) {
             newDevice = AudioPolicyManagerBase::getNewDevice(mLPADecodeOutput, false);
@@ -327,10 +327,10 @@ status_t AudioPolicyManager::setDeviceConnectionState(AudioSystem::audio_devices
 #ifdef FM_RADIO
         if(device == AudioSystem::DEVICE_OUT_FM) {
             if (state == AudioSystem::DEVICE_STATE_AVAILABLE) {
-                mOutputs.valueFor(mHardwareOutput)->changeRefCount(AudioSystem::FM, 1);
+                mOutputs.valueFor(mPrimaryOutput)->changeRefCount(AudioSystem::FM, 1);
             }
             else {
-                mOutputs.valueFor(mHardwareOutput)->changeRefCount(AudioSystem::FM, -1);
+                mOutputs.valueFor(mPrimaryOutput)->changeRefCount(AudioSystem::FM, -1);
             }
             if(newDevice == 0){
                 newDevice = getDeviceForStrategy(STRATEGY_MEDIA, false);
@@ -351,7 +351,7 @@ status_t AudioPolicyManager::setDeviceConnectionState(AudioSystem::audio_devices
             setOutputDevice(mLPADecodeOutput, newDevice);
         }
 #endif
-        setOutputDevice(mHardwareOutput, newDevice);
+        setOutputDevice(mPrimaryOutput, newDevice);
 
         if (device == AudioSystem::DEVICE_OUT_WIRED_HEADSET) {
             device = AudioSystem::DEVICE_IN_WIRED_HEADSET;
@@ -461,7 +461,7 @@ void AudioPolicyManager::setPhoneState(int state)
     }
 
     // check for device and output changes triggered by new phone state
-    newDevice = AudioPolicyManagerBase::getNewDevice(mHardwareOutput, false);
+    newDevice = AudioPolicyManagerBase::getNewDevice(mPrimaryOutput, false);
 #ifdef WITH_QCOM_LPA
     if (newDevice == 0 && (mLPADecodeOutput != -1 &&
         mOutputs.valueFor(mLPADecodeOutput)->isUsedByStrategy(STRATEGY_MEDIA))) {
@@ -482,7 +482,7 @@ void AudioPolicyManager::setPhoneState(int state)
 #endif
     AudioPolicyManagerBase::updateDeviceForStrategy();
 
-    AudioOutputDescriptor *hwOutputDesc = mOutputs.valueFor(mHardwareOutput);
+    AudioOutputDescriptor *hwOutputDesc = mOutputs.valueFor(mPrimaryOutput);
 
     // force routing command to audio hardware when ending call
     // even if no device change is needed
@@ -500,11 +500,11 @@ void AudioPolicyManager::setPhoneState(int state)
         // and be sure that audio buffers not yet affected by the mute are out when
         // we actually apply the route change
         delayMs = hwOutputDesc->mLatency*2;
-        setStreamMute(AudioSystem::RING, true, mHardwareOutput);
+        setStreamMute(AudioSystem::RING, true, mPrimaryOutput);
     }
 
     // change routing is necessary
-    setOutputDevice(mHardwareOutput, newDevice, force, delayMs);
+    setOutputDevice(mPrimaryOutput, newDevice, force, delayMs);
 
     // if entering in call state, handle special case of active streams
     // pertaining to sonification strategy see handleIncallSonification()
@@ -513,7 +513,7 @@ void AudioPolicyManager::setPhoneState(int state)
         // unmute the ringing tone after a sufficient delay if it was muted before
         // setting output device above
         if (oldState == AudioSystem::MODE_RINGTONE) {
-            setStreamMute(AudioSystem::RING, false, mHardwareOutput, MUTE_TIME_MS);
+            setStreamMute(AudioSystem::RING, false, mPrimaryOutput, MUTE_TIME_MS);
         }
         for (int stream = 0; stream < AudioSystem::NUM_STREAM_TYPES; stream++) {
             AudioPolicyManagerBase::handleIncallSonification(stream, true, true);
@@ -718,7 +718,7 @@ status_t AudioPolicyManager::stopOutput(audio_io_handle_t output,
         }
 
 #ifdef WITH_QCOM_LPA
-        uint32_t newDevice = AudioPolicyManagerBase::getNewDevice(mHardwareOutput, false);
+        uint32_t newDevice = AudioPolicyManagerBase::getNewDevice(mPrimaryOutput, false);
         if(newDevice == 0 && mLPADecodeOutput != -1) {
             newDevice = AudioPolicyManagerBase::getNewDevice(mLPADecodeOutput, false);
         }
@@ -734,11 +734,11 @@ status_t AudioPolicyManager::stopOutput(audio_io_handle_t output,
             setStrategyMute(STRATEGY_MEDIA,
                             false,
                             mA2dpOutput,
-                            mOutputs.valueFor(mHardwareOutput)->mLatency*2);
+                            mOutputs.valueFor(mPrimaryOutput)->mLatency*2);
         }
 #endif
-        if (output != mHardwareOutput) {
-            setOutputDevice(mHardwareOutput, AudioPolicyManagerBase::getNewDevice(mHardwareOutput), true);
+        if (output != mPrimaryOutput) {
+            setOutputDevice(mPrimaryOutput, AudioPolicyManagerBase::getNewDevice(mPrimaryOutput), true);
         }
         return NO_ERROR;
     } else {
@@ -768,9 +768,9 @@ status_t AudioPolicyManager::stopInput(audio_io_handle_t input)
         mpClientInterface->setParameters(input, param.toString());
         inputDesc->mRefCount = 0;
 
-        newDevice = AudioPolicyManagerBase::getNewDevice(mHardwareOutput);
+        newDevice = AudioPolicyManagerBase::getNewDevice(mPrimaryOutput);
         param.addInt(String8(AudioParameter::keyRouting), (int)newDevice);
-        mpClientInterface->setParameters(mHardwareOutput, param.toString());
+        mpClientInterface->setParameters(mPrimaryOutput, param.toString());
         return NO_ERROR;
     }
     return NO_ERROR;
@@ -859,7 +859,7 @@ void AudioPolicyManager::setOutputDevice(audio_io_handle_t output, uint32_t devi
     // do the routing
     AudioParameter param = AudioParameter();
     param.addInt(String8(AudioParameter::keyRouting), (int)device);
-    mpClientInterface->setParameters(mHardwareOutput, param.toString(), delayMs);
+    mpClientInterface->setParameters(mPrimaryOutput, param.toString(), delayMs);
     // update stream volumes according to new device
     AudioPolicyManagerBase::applyStreamVolumes(output, device, delayMs);
 #ifdef WITH_QCOM_LPA
@@ -954,7 +954,7 @@ status_t AudioPolicyManager::checkAndSetVolume(int stream, int index, audio_io_h
                    voiceVolume = (float)index/(float)mStreams[stream].mIndexMax;
                 }
             }
-            if (voiceVolume >= 0 && output == mHardwareOutput) {
+            if (voiceVolume >= 0 && output == mPrimaryOutput) {
                 mpClientInterface->setVoiceVolume(voiceVolume, delayMs);
             }
 #ifdef FM_RADIO
@@ -962,7 +962,7 @@ status_t AudioPolicyManager::checkAndSetVolume(int stream, int index, audio_io_h
             float fmVolume = -1.0;
             fmVolume = computeVolume(stream, index, output, device);
             if (fmVolume >= 0) {
-                if(output == mHardwareOutput)
+                if(output == mPrimaryOutput)
                     mpClientInterface->setFmVolume(fmVolume, delayMs);
                 else if(output == mA2dpOutput)
                     mpClientInterface->setStreamVolume((AudioSystem::stream_type)stream, volume, output, delayMs);
@@ -1059,7 +1059,7 @@ void AudioPolicyManager::setForceUse(AudioSystem::force_use usage, AudioSystem::
         mForceUse[usage] = config;
         {
             uint32_t device = getDeviceForStrategy(STRATEGY_MEDIA);
-            setOutputDevice(mHardwareOutput, device);
+            setOutputDevice(mPrimaryOutput, device);
         }
         break;
     case AudioSystem::FOR_RECORD:
@@ -1084,14 +1084,14 @@ void AudioPolicyManager::setForceUse(AudioSystem::force_use usage, AudioSystem::
     }
 
     // check for device and output changes triggered by new phone state
-    uint32_t newDevice = getNewDevice(mHardwareOutput, false);
+    uint32_t newDevice = getNewDevice(mPrimaryOutput, false);
 #ifdef WITH_A2DP
     checkOutputForAllStrategies();
 #endif
     updateDeviceForStrategy();
-    setOutputDevice(mHardwareOutput, newDevice);
+    setOutputDevice(mPrimaryOutput, newDevice);
     if (forceVolumeReeval) {
-        applyStreamVolumes(mHardwareOutput, newDevice);
+        applyStreamVolumes(mPrimaryOutput, newDevice);
     }
 }
 
