@@ -415,7 +415,7 @@ audio_devices_t newDevice = AudioPolicyManagerBase::getNewDevice(mPrimaryOutput,
 void AudioPolicyManager::setPhoneState(int state)
 {
     ALOGV("setPhoneState() state %d", state);
-    uint32_t newDevice = 0;
+    audio_devices_t newDevice = (audio_devices_t)0;
     if (state < 0 || state >= AudioSystem::NUM_MODES) {
         ALOGW("setPhoneState() invalid state %d", state);
         return;
@@ -899,7 +899,7 @@ void AudioPolicyManager::setOutputDevice(audio_io_handle_t output, audio_devices
     }
 }
 
-status_t AudioPolicyManager::checkAndSetVolume(int stream, int index, audio_io_handle_t output, uint32_t device, int delayMs, bool force)
+status_t AudioPolicyManager::checkAndSetVolume(int stream, int index, audio_io_handle_t output, audio_devices_t device, int delayMs, bool force)
 {
 #ifdef WITH_QCOM_LPA
     // do not change actual stream volume if the stream is muted
@@ -919,7 +919,7 @@ status_t AudioPolicyManager::checkAndSetVolume(int stream, int index, audio_io_h
         return INVALID_OPERATION;
     }
 
-    float volume = computeVolume(stream, index, output, audio_device_t device);
+    float volume = computeVolume(stream, index, output, device);
     // do not set volume if the float value did not change
     if ((volume != mOutputs.valueFor(output)->mCurVolume[stream]) || (stream == AudioSystem::VOICE_CALL) ||
 #ifdef FM_RADIO
@@ -1029,7 +1029,7 @@ void AudioPolicyManager::setStreamMute(int stream, bool on, audio_io_handle_t ou
         }
 #else
         if(--outputDesc->mMuteCount[stream] == 0){
-            checkAndSetVolume(stream, streamDesc.mIndexCur, output, outputDesc->device(), delayMs);
+          checkAndSetVolume(stream, streamDesc.getVolumeIndex(outputDesc->device()), output, outputDesc->device(), delayMs);
         }
 #endif
     }
@@ -1058,7 +1058,7 @@ void AudioPolicyManager::setForceUse(AudioSystem::force_use usage, AudioSystem::
         }
         mForceUse[usage] = config;
         {
-            uint32_t device = getDeviceForStrategy(STRATEGY_MEDIA);
+            audio_devices_t device = getDeviceForStrategy(STRATEGY_MEDIA);
             setOutputDevice(mPrimaryOutput, device);
         }
         break;
@@ -1084,7 +1084,7 @@ void AudioPolicyManager::setForceUse(AudioSystem::force_use usage, AudioSystem::
     }
 
     // check for device and output changes triggered by new phone state
-    uint32_t newDevice = getNewDevice(mPrimaryOutput, false);
+    audio_devices_t newDevice = getNewDevice(mPrimaryOutput, false);
 #ifdef WITH_A2DP
     checkOutputForAllStrategies();
 #endif
@@ -1095,7 +1095,7 @@ void AudioPolicyManager::setForceUse(AudioSystem::force_use usage, AudioSystem::
     }
 }
 
-uint32_t AudioPolicyManager::getDeviceForInputSource(int inputSource)
+audio_devices_t AudioPolicyManager::getDeviceForInputSource(int inputSource)
 {
     uint32_t device;
 
@@ -1139,7 +1139,7 @@ uint32_t AudioPolicyManager::getDeviceForInputSource(int inputSource)
         break;
     }
     ALOGV("getDeviceForInputSource()input source %d, device %08x", inputSource, device);
-    return device;
+    return (audio_devices_t)device;
 }
 
 /*
