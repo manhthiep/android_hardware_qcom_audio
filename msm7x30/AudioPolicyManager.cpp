@@ -318,7 +318,7 @@ status_t AudioPolicyManager::setDeviceConnectionState(AudioSystem::audio_devices
         }
 
         // request routing change if necessary
-        uint32_t newDevice = AudioPolicyManagerBase::getNewDevice(mPrimaryOutput, false);
+audio_devices_t newDevice = AudioPolicyManagerBase::getNewDevice(mPrimaryOutput, false);
 #ifdef WITH_QCOM_LPA
         if(newDevice == 0 && mLPADecodeOutput != -1) {
             newDevice = AudioPolicyManagerBase::getNewDevice(mLPADecodeOutput, false);
@@ -394,7 +394,7 @@ status_t AudioPolicyManager::setDeviceConnectionState(AudioSystem::audio_devices
         audio_io_handle_t activeInput = AudioPolicyManagerBase::getActiveInput();
         if (activeInput != 0) {
             AudioInputDescriptor *inputDesc = mInputs.valueFor(activeInput);
-            uint32_t newDevice = AudioPolicyManagerBase::getDeviceForInputSource(inputDesc->mInputSource);
+            audio_devices_t newDevice = AudioPolicyManagerBase::getDeviceForInputSource(inputDesc->mInputSource);
             ALOGV("setDeviceConnectionState() changing device from %x to %x for input %d",
                 inputDesc->mDevice, newDevice, activeInput);
             inputDesc->mDevice = newDevice;
@@ -674,7 +674,7 @@ status_t AudioPolicyManager::startOutput(audio_io_handle_t output,
     else
         setOutputDevice(output, AudioPolicyManagerBase::getNewDevice(output));
 #else
-    setOutputDevice(output, AudioPolicyManagerBase::getNewDevice(output));
+    setOutputDevice(output, AudioPolicyManagerBase::getNewDevice(output, false));
 #endif
 #endif
 
@@ -684,7 +684,7 @@ status_t AudioPolicyManager::startOutput(audio_io_handle_t output,
     }
 
     // apply volume rules for current stream and device if necessary
-    checkAndSetVolume(stream, mStreams[stream].mIndexCur, output, outputDesc->device());
+    checkAndSetVolume(stream, mStreams[stream].getVolumeIndex(outputDesc->device()), output, outputDesc->device());
 
     return NO_ERROR;
 }
@@ -725,7 +725,7 @@ status_t AudioPolicyManager::stopOutput(audio_io_handle_t output,
 
         setOutputDevice(output, newDevice);
 #else
-        setOutputDevice(output, AudioPolicyManagerBase::getNewDevice(output));
+        setOutputDevice(output, AudioPolicyManagerBase::getNewDevice(output, false));
 #endif
 
 #ifdef WITH_A2DP
@@ -738,7 +738,7 @@ status_t AudioPolicyManager::stopOutput(audio_io_handle_t output,
         }
 #endif
         if (output != mPrimaryOutput) {
-            setOutputDevice(mPrimaryOutput, AudioPolicyManagerBase::getNewDevice(mPrimaryOutput), true);
+            setOutputDevice(mPrimaryOutput, AudioPolicyManagerBase::getNewDevice(mPrimaryOutput, false), true);
         }
         return NO_ERROR;
     } else {
@@ -750,7 +750,7 @@ status_t AudioPolicyManager::stopOutput(audio_io_handle_t output,
 status_t AudioPolicyManager::stopInput(audio_io_handle_t input)
 {
     ALOGV("stopInput() input %d", input);
-    uint32_t newDevice = NULL;
+    audio_devices_t newDevice = (audio_devices_t)0;
     ssize_t index = mInputs.indexOfKey(input);
     if (index < 0) {
         ALOGW("stopInput() unknow input %d", input);
@@ -768,7 +768,7 @@ status_t AudioPolicyManager::stopInput(audio_io_handle_t input)
         mpClientInterface->setParameters(input, param.toString());
         inputDesc->mRefCount = 0;
 
-        newDevice = AudioPolicyManagerBase::getNewDevice(mPrimaryOutput);
+        newDevice = AudioPolicyManagerBase::getNewDevice(mPrimaryOutput,false);
         param.addInt(String8(AudioParameter::keyRouting), (int)newDevice);
         mpClientInterface->setParameters(mPrimaryOutput, param.toString());
         return NO_ERROR;
@@ -796,7 +796,7 @@ extern "C" void destroyAudioPolicyManager(AudioPolicyInterface *interface)
 
 // ---
 
-void AudioPolicyManager::setOutputDevice(audio_io_handle_t output, uint32_t device, bool force, int delayMs)
+void AudioPolicyManager::setOutputDevice(audio_io_handle_t output, audio_devices_t device, bool force, int delayMs)
 {
     ALOGV("setOutputDevice() output %d device %x delayMs %d", output, device, delayMs);
     AudioOutputDescriptor *outputDesc = mOutputs.valueFor(output);
