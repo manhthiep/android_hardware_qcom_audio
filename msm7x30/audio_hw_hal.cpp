@@ -456,8 +456,12 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
     if (!out)
         return -ENOMEM;
 
-    out->qcom_out = qadev->hwif->openOutputStream(devices, format, channels,
-                                                    sample_rate, &status);
+    out->qcom_out = qadev->hwif->openOutputStream(devices,
+                                                    (int *)&config->format,
+                                                    &config->channel_mask,
+                                                    &config->sample_rate,
+                                                    &status);
+
     if (!out->qcom_out) {
         ret = status;
         goto err_open;
@@ -501,10 +505,10 @@ static void adev_close_output_stream(struct audio_hw_device *dev,
 
 /** This method creates and opens the audio hardware input stream */
 static int adev_open_input_stream(struct audio_hw_device *dev,
-                                  uint32_t devices, int *format,
-                                  uint32_t *channels, uint32_t *sample_rate,
-                                  audio_in_acoustics_t acoustics,
-                                  struct audio_stream_in **stream_in)
+                                  audio_io_handle_t handle,
+                                  audio_devices_t devices,
+                                  audio_config *config,
+                                  audio_stream_in **stream_in)
 {
     struct qcom_audio_device *qadev = to_ladev(dev);
     status_t status;
@@ -515,15 +519,17 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
     if (!in)
         return -ENOMEM;
 
-    in->qcom_in = qadev->hwif->openInputStream(devices, format, channels,
-                                    sample_rate, &status,
-                                    (AudioSystem::audio_in_acoustics)acoustics);
+    in->qcom_in = qadev->hwif->openInputStream(devices, (int *)&config->format,
+                                    &config->channel_mask,
+                                    &config->sample_rate,
+                                    &status,
+                                    (AudioSystem::audio_in_acoustics)0);
     if (!in->qcom_in) {
         ret = status;
         goto err_open;
     }
-
     in->stream.common.get_sample_rate = in_get_sample_rate;
+
     in->stream.common.set_sample_rate = in_set_sample_rate;
     in->stream.common.get_buffer_size = in_get_buffer_size;
     in->stream.common.get_channels = in_get_channels;
