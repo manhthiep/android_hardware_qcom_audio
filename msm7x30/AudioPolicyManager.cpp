@@ -251,7 +251,7 @@ status_t AudioPolicyManager::setDeviceConnectionState(AudioSystem::audio_devices
             ALOGV("setDeviceConnectionState() connecting device %x", device);
 
             // register new device as available
-            mAvailableOutputDevices |= device;
+            mAvailableOutputDevices = (audio_devices_t)(mAvailableOutputDevices | device);
 
 #ifdef WITH_A2DP
             // handle A2DP device connection
@@ -287,7 +287,7 @@ status_t AudioPolicyManager::setDeviceConnectionState(AudioSystem::audio_devices
 
             ALOGV("setDeviceConnectionState() disconnecting device %x", device);
             // remove device from available output devices
-            mAvailableOutputDevices &= ~device;
+            mAvailableOutputDevices = (audio_devices_t)(mAvailableOutputDevices & ~device);
 
 #ifdef WITH_A2DP
             // handle A2DP device disconnection
@@ -373,7 +373,7 @@ status_t AudioPolicyManager::setDeviceConnectionState(AudioSystem::audio_devices
                 ALOGW("setDeviceConnectionState() device already connected: %d", device);
                 return INVALID_OPERATION;
             }
-            mAvailableInputDevices |= device;
+            mAvailableInputDevices = (audio_devices_t)(mAvailableInputDevices |  device);
             }
             break;
 
@@ -383,7 +383,7 @@ status_t AudioPolicyManager::setDeviceConnectionState(AudioSystem::audio_devices
                 ALOGW("setDeviceConnectionState() device not connected: %d", device);
                 return INVALID_OPERATION;
             }
-            mAvailableInputDevices &= ~device;
+            mAvailableInputDevices = (audio_devices_t)(mAvailableInputDevices & ~device);
             } break;
 
         default:
