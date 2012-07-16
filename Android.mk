@@ -10,6 +10,9 @@ endif
 ifeq ($(TARGET_BOARD_PLATFORM),msm7x27a)
     include $(AUDIO_HW_ROOT)/msm7627a/Android.mk
 endif
+ifeq ($(TARGET_BOARD_PLATFORM),msm7x30)
+    include $(AUDIO_HW_ROOT)/msm7x30/Android.mk
+endif
 ifeq ($(TARGET_BOARD_PLATFORM),msm8660)
     include $(AUDIO_HW_ROOT)/msm8660/Android.mk
 endif
