@@ -948,7 +948,7 @@ status_t AudioPolicyManager::checkAndSetVolume(int stream, int index, audio_io_h
                 AudioParameter result(mpClientInterface->getParameters(0,key));
                 int value;
                 if(result.getInt(String8("isVGS"),value) == NO_ERROR){
-                   LOGD("BT-SCO Voice Volume %f",(float)index/(float)mStreams[stream].mIndexMax);
+                   ALOGD("BT-SCO Voice Volume %f",(float)index/(float)mStreams[stream].mIndexMax);
                    voiceVolume = 1.0;
                 } else {
                    voiceVolume = (float)index/(float)mStreams[stream].mIndexMax;
