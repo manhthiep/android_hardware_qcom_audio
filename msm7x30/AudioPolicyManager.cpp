@@ -80,7 +80,7 @@ audio_devices_t AudioPolicyManager::getDeviceForStrategy(routing_strategy strate
             if (device) break;
             device = mAvailableOutputDevices & AudioSystem::DEVICE_OUT_EARPIECE;
             if (device == 0) {
-                ALOGE("getDeviceForStrategy() earpiece device not found");
+            ALOGE("getDeviceForStrategy() earpiece device not found av=%d audio=%d",mAvailableOutputDevices,AudioSystem::DEVICE_OUT_EARPIECE);
             }
             break;
 
