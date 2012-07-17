@@ -141,7 +141,6 @@ static const uint32_t DEVICE_COUNT = DEVICE_DUALMIC_SPEAKER_TX +1;
 static bool support_aic3254 = true;
 static bool aic3254_enabled = true;
 int (*set_sound_effect)(const char* effect);
-  int my_write(int handle, const char *buf, unsigned int size);
 static bool support_tpa2051 = true;
 static bool support_htc_backmic = true;
 static bool isHTCPhone = true;
@@ -158,15 +157,6 @@ int mixer_cnt = 0;
 static uint32_t cur_tx = INVALID_DEVICE;
 static uint32_t cur_rx = INVALID_DEVICE;
 bool vMicMute = false;
-  int my_write(int handle, const char *buf, unsigned int size)
-  {
-    char *b = (char *)malloc(1 * sizeof(char));
-    b[0] = 0;
-    //    ALOGW("Trying to write to %d (%p)\n", handle, buf);
-    int ret = write(handle, buf, size);
-    //    ALOGW("ret=%d\n",ret);
-    return size;
-  }
 typedef struct routing_table
 {
     unsigned short dec_id;
@@ -2631,18 +2621,17 @@ AudioHardware::AudioStreamOutMSM72xx::~AudioStreamOutMSM72xx()
 
 ssize_t AudioHardware::AudioStreamOutMSM72xx::write(const void* buffer, size_t bytes)
 {
-  //  ALOGD("AudioStreamOutMSM72xx::write(%p, %u) (%d)", buffer, bytes);
+    // ALOGD("AudioStreamOutMSM72xx::write(%p, %u)", buffer, bytes);
     status_t status = NO_INIT;
     size_t count = bytes;
-    const int8_t* p = static_cast<const int8_t*>(buffer);
+    const uint8_t* p = static_cast<const uint8_t*>(buffer);
     unsigned short dec_id = INVALID_DEVICE;
 
     if (mStandby) {
 
         // open driver
-        ALOGW("open driver");
-        status = ::open("/dev/msm_pcm_out", O_RDWR);//O_WRONLY/*O_RDWR*/);
-        //status = ::open("/dev/null", O_RDWR);//O_WRONLY/*O_RDWR*/);
+        ALOGV("open driver");
+        status = ::open("/dev/msm_pcm_out", O_WRONLY/*O_RDWR*/);
         if (status < 0) {
             ALOGE("Cannot open /dev/msm_pcm_out errno: %d", errno);
             goto Error;
@@ -2650,7 +2639,7 @@ ssize_t AudioHardware::AudioStreamOutMSM72xx::write(const void* buffer, size_t b
         mFd = status;
 
         // configuration
-        ALOGW("get config");
+        ALOGV("get config");
         struct msm_audio_config config;
         status = ioctl(mFd, AUDIO_GET_CONFIG, &config);
         if (status < 0) {
@@ -2658,7 +2647,7 @@ ssize_t AudioHardware::AudioStreamOutMSM72xx::write(const void* buffer, size_t b
             goto Error;
         }
 
-        ALOGW("set config");
+        ALOGV("set config");
         config.channel_count = AudioSystem::popCount(channels());
         config.sample_rate = sampleRate();
         config.buffer_size = bufferSize();
@@ -2669,10 +2658,11 @@ ssize_t AudioHardware::AudioStreamOutMSM72xx::write(const void* buffer, size_t b
             ALOGE("Cannot set config");
             goto Error;
         }
-        ALOGW("buffer_size: %u", config.buffer_size);
-        ALOGW("buffer_count: %u", config.buffer_count);
-        ALOGW("channel_count: %u", config.channel_count);
-        ALOGW("sample_rate: %u", config.sample_rate);
+
+        ALOGV("buffer_size: %u", config.buffer_size);
+        ALOGV("buffer_count: %u", config.buffer_count);
+        ALOGV("channel_count: %u", config.channel_count);
+        ALOGV("sample_rate: %u", config.sample_rate);
 
         // fill 2 buffers before AUDIO_START
         mStartCount = AUDIO_HW_NUM_OUT_BUF;
@@ -2683,7 +2673,7 @@ ssize_t AudioHardware::AudioStreamOutMSM72xx::write(const void* buffer, size_t b
     }
 
     while (count) {
-      size_t written = ::write(mFd, (const char *)p, count);
+        ssize_t written = ::write(mFd, p, count);
         if (written >= 0) {
             count -= written;
             p += written;
@@ -2693,6 +2683,7 @@ ssize_t AudioHardware::AudioStreamOutMSM72xx::write(const void* buffer, size_t b
             ALOGW("EAGAIN - retry");
         }
     }
+
     // start audio after we fill 2 buffers
     if (mStartCount) {
         if (--mStartCount == 0) {
@@ -2700,29 +2691,34 @@ ssize_t AudioHardware::AudioStreamOutMSM72xx::write(const void* buffer, size_t b
                 ALOGE("AUDIO_GET_SESSION_ID failed*********");
                 return 0;
             }
-            ALOGW("dec_id = %d\n",dec_id);
+            ALOGV("dec_id = %d\n",dec_id);
             if(cur_rx == INVALID_DEVICE)
                 return 0;
+
             Mutex::Autolock lock(mDeviceSwitchLock);
+
            if (isHTCPhone) {
                 int snd_dev = mHardware->get_snd_dev();
                 if (support_aic3254)
                     mHardware->do_aic3254_control(snd_dev);
-                ALOGW("cur_rx for pcm playback = %d", cur_rx);
+
+                ALOGV("cur_rx for pcm playback = %d", cur_rx);
                 if (enableDevice(cur_rx, 1)) {
                     ALOGE("enableDevice failed for device cur_rx %d", cur_rx);
                     return 0;
                 }
+
                 uint32_t rx_acdb_id = mHardware->getACDB(MOD_PLAY, snd_dev);
                 updateACDB(cur_rx, cur_tx, rx_acdb_id, 0);
 
             } else {
-                ALOGW("cur_rx for pcm playback = %d",cur_rx);
+                ALOGV("cur_rx for pcm playback = %d",cur_rx);
                 if(enableDevice(cur_rx, 1)) {
                     ALOGE("enableDevice failed for device cur_rx %d", cur_rx);
                     return 0;
                 }
             }
+
             ALOGD("msm_route_stream(PCM_PLAY,%d,%d,1)",dec_id,DEV_ID(cur_rx));
             if(msm_route_stream(PCM_PLAY, dec_id, DEV_ID(cur_rx), 1)) {
                 ALOGE("msm_route_stream failed");
@@ -2770,7 +2766,7 @@ ssize_t AudioHardware::AudioStreamOutMSM72xx::write(const void* buffer, size_t b
 
 Error:
     if (mFd >= 0) {
-      ::close(mFd);
+        ::close(mFd);
         mFd = -1;
     }
     // Simulate audio output timing in case of error
@@ -2852,11 +2848,11 @@ status_t AudioHardware::AudioStreamOutMSM72xx::setParameters(const String8& keyV
     String8 key = String8(AudioParameter::keyRouting);
     status_t status = NO_ERROR;
     int device;
-    ALOGW("AudioStreamOutMSM72xx::setParameters() %s", keyValuePairs.string());
+    ALOGV("AudioStreamOutMSM72xx::setParameters() %s", keyValuePairs.string());
 
     if (param.getInt(key, device) == NO_ERROR) {
         mDevices = device;
-        ALOGW("set output routing %x", mDevices);
+        ALOGV("set output routing %x", mDevices);
         status = mHardware->doRouting(NULL);
         param.remove(key);
     }
@@ -2874,11 +2870,11 @@ String8 AudioHardware::AudioStreamOutMSM72xx::getParameters(const String8& keys)
     String8 key = String8(AudioParameter::keyRouting);
 
     if (param.get(key, value) == NO_ERROR) {
-        ALOGW("get routing %x", mDevices);
+        ALOGV("get routing %x", mDevices);
         param.addInt(key, (int)mDevices);
     }
 
-    ALOGW("AudioStreamOutMSM72xx::getParameters() %s", param.toString().string());
+    ALOGV("AudioStreamOutMSM72xx::getParameters() %s", param.toString().string());
     return param.toString();
 }
 
@@ -2937,7 +2933,7 @@ status_t AudioHardware::AudioStreamInMSM72xx::set(
 
     mHardware = hw;
 
-    ALOGW("AudioStreamInMSM72xx::set(%d, %d, %u)", *pFormat, *pChannels, *pRate);
+    ALOGV("AudioStreamInMSM72xx::set(%d, %d, %u)", *pFormat, *pChannels, *pRate);
     if (mFd >= 0) {
         ALOGE("Audio record already open");
         return -EPERM;
@@ -2953,7 +2949,7 @@ status_t AudioHardware::AudioStreamInMSM72xx::set(
         }
         mFd = status;
         // configuration
-        ALOGW("get config");
+        ALOGV("get config");
         struct msm_audio_config config;
         status = ioctl(mFd, AUDIO_GET_CONFIG, &config);
         if (status < 0) {
@@ -2961,7 +2957,7 @@ status_t AudioHardware::AudioStreamInMSM72xx::set(
             goto Error;
         }
 
-        ALOGW("set config");
+        ALOGV("set config");
         config.channel_count = AudioSystem::popCount((*pChannels) & (AudioSystem::CHANNEL_IN_STEREO | AudioSystem::CHANNEL_IN_MONO));
         config.sample_rate = *pRate;
         config.buffer_size = bufferSize();
@@ -2981,16 +2977,16 @@ status_t AudioHardware::AudioStreamInMSM72xx::set(
             goto Error;
         }
 
-        ALOGW("confirm config");
+        ALOGV("confirm config");
         status = ioctl(mFd, AUDIO_GET_CONFIG, &config);
         if (status < 0) {
             ALOGE("Cannot read config");
             goto Error;
         }
-        ALOGW("buffer_size: %u", config.buffer_size);
-        ALOGW("buffer_count: %u", config.buffer_count);
-        ALOGW("channel_count: %u", config.channel_count);
-        ALOGW("sample_rate: %u", config.sample_rate);
+        ALOGV("buffer_size: %u", config.buffer_size);
+        ALOGV("buffer_count: %u", config.buffer_count);
+        ALOGV("channel_count: %u", config.channel_count);
+        ALOGV("sample_rate: %u", config.sample_rate);
 
         mDevices = devices;
         mFormat = AUDIO_HW_IN_FORMAT;
@@ -3011,7 +3007,7 @@ status_t AudioHardware::AudioStreamInMSM72xx::set(
         mFd = status;
 
         // configuration
-        ALOGW("get config (mFd=%d)", mFd);
+        ALOGV("get config");
         struct msm_audio_config config;
         status = ioctl(mFd, AUDIO_GET_CONFIG, &config);
         if (status < 0) {
@@ -3019,7 +3015,7 @@ status_t AudioHardware::AudioStreamInMSM72xx::set(
             goto Error;
         }
 
-        ALOGW("set config");
+        ALOGV("set config");
         config.channel_count = AudioSystem::popCount((*pChannels) & (AudioSystem::CHANNEL_IN_STEREO | AudioSystem::CHANNEL_IN_MONO));
         config.sample_rate = *pRate;
         config.buffer_size = bufferSize();
@@ -3050,16 +3046,16 @@ status_t AudioHardware::AudioStreamInMSM72xx::set(
             goto Error;
         }
 
-        ALOGW("confirm config");
+        ALOGV("confirm config");
         status = ioctl(mFd, AUDIO_GET_CONFIG, &config);
         if (status < 0) {
             ALOGE("Cannot read config");
             goto Error;
         }
-        ALOGW("buffer_size: %u", config.buffer_size);
-        ALOGW("buffer_count: %u", config.buffer_count);
-        ALOGW("channel_count: %u", config.channel_count);
-        ALOGW("sample_rate: %u", config.sample_rate);
+        ALOGV("buffer_size: %u", config.buffer_size);
+        ALOGV("buffer_count: %u", config.buffer_count);
+        ALOGV("channel_count: %u", config.channel_count);
+        ALOGV("sample_rate: %u", config.sample_rate);
 
         mDevices = devices;
         mFormat = AUDIO_HW_IN_FORMAT;
@@ -3129,8 +3125,8 @@ status_t AudioHardware::AudioStreamInMSM72xx::set(
             goto  Error;
           }
 
-          ALOGW("The Config buffer size is %d", config.buffer_size);
-          ALOGW("The Config buffer count is %d", config.buffer_count);
+          ALOGV("The Config buffer size is %d", config.buffer_size);
+          ALOGV("The Config buffer count is %d", config.buffer_count);
 
           mSampleRate =8000;
           mFormat = *pFormat;
@@ -3143,9 +3139,9 @@ status_t AudioHardware::AudioStreamInMSM72xx::set(
             goto  Error;
           }
 
-          ALOGW("The Config cdma_rate is %d", evrc_enc_cfg.cdma_rate);
-          ALOGW("The Config min_bit_rate is %d", evrc_enc_cfg.min_bit_rate);
-          ALOGW("The Config max_bit_rate is %d", evrc_enc_cfg.max_bit_rate);
+          ALOGV("The Config cdma_rate is %d", evrc_enc_cfg.cdma_rate);
+          ALOGV("The Config min_bit_rate is %d", evrc_enc_cfg.min_bit_rate);
+          ALOGV("The Config max_bit_rate is %d", evrc_enc_cfg.max_bit_rate);
 
           evrc_enc_cfg.min_bit_rate = 4;
           evrc_enc_cfg.max_bit_rate = 4;
@@ -3198,8 +3194,8 @@ status_t AudioHardware::AudioStreamInMSM72xx::set(
             goto  Error;
           }
 
-          ALOGW("The Config buffer size is %d", config.buffer_size);
-          ALOGW("The Config buffer count is %d", config.buffer_count);
+          ALOGV("The Config buffer size is %d", config.buffer_size);
+          ALOGV("The Config buffer count is %d", config.buffer_count);
 
           mSampleRate =8000;
           mFormat = *pFormat;
@@ -3213,9 +3209,9 @@ status_t AudioHardware::AudioStreamInMSM72xx::set(
             goto  Error;
           }
 
-          ALOGW("The Config cdma_rate is %d", qcelp_enc_cfg.cdma_rate);
-          ALOGW("The Config min_bit_rate is %d", qcelp_enc_cfg.min_bit_rate);
-          ALOGW("The Config max_bit_rate is %d", qcelp_enc_cfg.max_bit_rate);
+          ALOGV("The Config cdma_rate is %d", qcelp_enc_cfg.cdma_rate);
+          ALOGV("The Config min_bit_rate is %d", qcelp_enc_cfg.min_bit_rate);
+          ALOGV("The Config max_bit_rate is %d", qcelp_enc_cfg.max_bit_rate);
 
           qcelp_enc_cfg.min_bit_rate = 4;
           qcelp_enc_cfg.max_bit_rate = 4;
@@ -3268,8 +3264,8 @@ status_t AudioHardware::AudioStreamInMSM72xx::set(
             goto  Error;
           }
 
-          ALOGW("The Config buffer size is %d", config.buffer_size);
-          ALOGW("The Config buffer count is %d", config.buffer_count);
+          ALOGV("The Config buffer size is %d", config.buffer_size);
+          ALOGV("The Config buffer count is %d", config.buffer_count);
 
           mSampleRate =8000;
           mFormat = *pFormat;
@@ -3282,9 +3278,9 @@ status_t AudioHardware::AudioStreamInMSM72xx::set(
             goto  Error;
           }
 
-          ALOGW("The Config band_mode is %d", amr_nb_cfg.band_mode);
-          ALOGW("The Config dtx_enable is %d", amr_nb_cfg.dtx_enable);
-          ALOGW("The Config frame_format is %d", amr_nb_cfg.frame_format);
+          ALOGV("The Config band_mode is %d", amr_nb_cfg.band_mode);
+          ALOGV("The Config dtx_enable is %d", amr_nb_cfg.dtx_enable);
+          ALOGV("The Config frame_format is %d", amr_nb_cfg.frame_format);
 
           amr_nb_cfg.band_mode = 7; /* Bit Rate 12.2 kbps MR122 */
           amr_nb_cfg.dtx_enable= 0;
@@ -3326,10 +3322,10 @@ status_t AudioHardware::AudioStreamInMSM72xx::set(
             goto  Error;
           }
 
-          ALOGW("The Config channels is %d", aac_enc_cfg.channels);
-          ALOGW("The Config sample_rate is %d", aac_enc_cfg.sample_rate);
-          ALOGW("The Config bit_rate is %d", aac_enc_cfg.bit_rate);
-          ALOGW("The Config stream_format is %d", aac_enc_cfg.stream_format);
+          ALOGV("The Config channels is %d", aac_enc_cfg.channels);
+          ALOGV("The Config sample_rate is %d", aac_enc_cfg.sample_rate);
+          ALOGV("The Config bit_rate is %d", aac_enc_cfg.bit_rate);
+          ALOGV("The Config stream_format is %d", aac_enc_cfg.stream_format);
 
           mDevices = devices;
           mChannels = *pChannels;
@@ -3342,10 +3338,10 @@ status_t AudioHardware::AudioStreamInMSM72xx::set(
               aac_enc_cfg.channels =  2;
           aac_enc_cfg.bit_rate = 128000;
 
-          ALOGW("Setting the Config channels is %d", aac_enc_cfg.channels);
-          ALOGW("Setting the Config sample_rate is %d", aac_enc_cfg.sample_rate);
-          ALOGW("Setting the Config bit_rate is %d", aac_enc_cfg.bit_rate);
-          ALOGW("Setting the Config stream_format is %d", aac_enc_cfg.stream_format);
+          ALOGV("Setting the Config channels is %d", aac_enc_cfg.channels);
+          ALOGV("Setting the Config sample_rate is %d", aac_enc_cfg.sample_rate);
+          ALOGV("Setting the Config bit_rate is %d", aac_enc_cfg.bit_rate);
+          ALOGV("Setting the Config stream_format is %d", aac_enc_cfg.stream_format);
 
           if (ioctl(mFd, AUDIO_SET_AAC_ENC_CONFIG, &aac_enc_cfg))
           {
@@ -3402,14 +3398,14 @@ Error:
 
 AudioHardware::AudioStreamInMSM72xx::~AudioStreamInMSM72xx()
 {
-    ALOGW("AudioStreamInMSM72xx destructor");
+    ALOGV("AudioStreamInMSM72xx destructor");
     standby();
 }
 
 ssize_t AudioHardware::AudioStreamInMSM72xx::read( void* buffer, ssize_t bytes)
 {
     unsigned short dec_id = INVALID_DEVICE;
-    ALOGW("AudioStreamInMSM72xx::read(%p, %ld)", buffer, bytes);
+    ALOGV("AudioStreamInMSM72xx::read(%p, %ld)", buffer, bytes);
     if (!mHardware) return -1;
 
     size_t count = bytes;
@@ -3464,7 +3460,7 @@ ssize_t AudioHardware::AudioStreamInMSM72xx::read( void* buffer, ssize_t bytes)
                 ALOGE("AUDIO_GET_SESSION_ID failed*********");
                 return -1;
             }
-            ALOGW("dec_id = %d,cur_tx= %d",dec_id,cur_tx);
+            ALOGV("dec_id = %d,cur_tx= %d",dec_id,cur_tx);
             if(cur_tx == INVALID_DEVICE)
                 cur_tx = DEVICE_HANDSET_TX;
 
@@ -3595,11 +3591,11 @@ ssize_t AudioHardware::AudioStreamInMSM72xx::read( void* buffer, ssize_t bytes)
 
             ssize_t bytesRead = ::read(mFd, p, count);
             if (bytesRead > 0) {
-                ALOGW("Number of Bytes read = %d", bytesRead);
+                ALOGV("Number of Bytes read = %d", bytesRead);
                 count -= bytesRead;
                 p += bytesRead;
                 bytes += bytesRead;
-                ALOGW("Total Number of Bytes read = %d", bytes);
+                ALOGV("Total Number of Bytes read = %d", bytes);
 
                 *frameSizePtr =  bytesRead;
                 (*frameCountPtr)++;
@@ -3653,7 +3649,7 @@ status_t AudioHardware::AudioStreamInMSM72xx::standby()
         if (mFd >= 0) {
             ::close(mFd);
             mFd = -1;
-            ALOGW("driver closed");
+            ALOGV("driver closed");
             isDriverClosed = true;
         }
         //mHardware->checkMicMute();
@@ -3695,7 +3691,7 @@ status_t AudioHardware::AudioStreamInMSM72xx::standby()
             deleteFromTable(PCM_REC);
             return -1;
         }
-        ALOGW("Disable device");
+        ALOGV("Disable device");
         deleteFromTable(PCM_REC);
         updateDeviceInfo(cur_rx, cur_tx, 0, 0);
     }//mRecordingSession condition.
@@ -3737,10 +3733,10 @@ status_t AudioHardware::AudioStreamInMSM72xx::setParameters(const String8& keyVa
     String8 key = String8(AudioParameter::keyRouting);
     status_t status = NO_ERROR;
     int device;
-    ALOGW("AudioStreamInMSM72xx::setParameters() %s", keyValuePairs.string());
+    ALOGV("AudioStreamInMSM72xx::setParameters() %s", keyValuePairs.string());
 
     if (param.getInt(key, device) == NO_ERROR) {
-        ALOGW("set input routing %x", device);
+        ALOGV("set input routing %x", device);
         if (device & (device - 1)) {
             status = BAD_VALUE;
         } else {
@@ -3763,11 +3759,11 @@ String8 AudioHardware::AudioStreamInMSM72xx::getParameters(const String8& keys)
     String8 key = String8(AudioParameter::keyRouting);
 
     if (param.get(key, value) == NO_ERROR) {
-        ALOGW("get routing %x", mDevices);
+        ALOGV("get routing %x", mDevices);
         param.addInt(key, (int)mDevices);
     }
 
-    ALOGW("AudioStreamInMSM72xx::getParameters() %s", param.toString().string());
+    ALOGV("AudioStreamInMSM72xx::getParameters() %s", param.toString().string());
     return param.toString();
 }
 
