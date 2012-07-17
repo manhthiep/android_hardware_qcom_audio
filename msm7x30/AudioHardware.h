@@ -99,16 +99,16 @@ struct rx_iir_filter {
     uint16_t iir_params[48];
 };
 
-struct msm_audio_config {
-        uint32_t buffer_size;
-        uint32_t buffer_count;
-        uint32_t channel_count;
-        uint32_t sample_rate;
-        uint32_t type;
-        uint32_t meta_field;
-        uint32_t bits;
-        uint32_t unused[3];
-};
+ struct msm_audio_config {
+   uint32_t buffer_size;
+   uint32_t buffer_count;
+   uint32_t channel_count;
+   uint32_t sample_rate;
+   uint32_t codec_type;
+   uint32_t meta_field;
+   uint32_t bits;
+   uint32_t unused[3];
+ };
 
 struct msm_bt_endpoint {
     int tx;
