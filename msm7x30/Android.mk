@@ -33,3 +33,12 @@ LOCAL_CFLAGS += -fno-short-enums
 include $(BUILD_SHARED_LIBRARY)
 
 endif # not BUILD_TINY_ANDROID
+
+# Load audio_policy.conf to system/etc/
+include $(CLEAR_VARS)
+LOCAL_MODULE       := audio_policy.conf
+LOCAL_MODULE_TAGS  := optional
+LOCAL_MODULE_CLASS := ETC
+LOCAL_MODULE_PATH  := $(TARGET_OUT_ETC)/
+LOCAL_SRC_FILES    := audio_policy.conf
+include $(BUILD_PREBUILT)
